@@ -243,6 +243,27 @@ bool Eluna::CallAllFunctionsBool(EventBind<T>* event_bindings, EntryBind<T>* ent
     return result;
 }
 
+void Eluna::OnTimedEvent(int funcRef, uint32 delay, uint32 calls, WorldObject* obj)
+{
+    LOCK_ELUNA;
+    ASSERT(!event_level);
+
+    // Get function
+    lua_rawgeti(L, LUA_REGISTRYINDEX, funcRef);
+
+    // Push parameters
+    Push(L, funcRef);
+    Push(L, delay);
+    Push(L, calls);
+    Push(L, obj);
+
+    // Call function
+    ExecuteCall(4, 0);
+
+    ASSERT(!event_level);
+    InvalidateObjects();
+}
+
 void Eluna::OnLuaStateClose()
 {
     if (!ServerEventBindings->HasEvents(ELUNA_EVENT_ON_LUA_STATE_CLOSE))
@@ -520,12 +541,10 @@ void Eluna::OnShutdownCancel()
 
 void Eluna::OnWorldUpdate(uint32 diff)
 {
-    LOCK_ELUNA;
-
-    if (reload)
     {
-        ReloadEluna();
-        return;
+        LOCK_ELUNA;
+        if (reload)
+            _ReloadEluna();
     }
 
     eventMgr->globalProcessor->Update(diff);
@@ -533,6 +552,7 @@ void Eluna::OnWorldUpdate(uint32 diff)
     if (!ServerEventBindings->HasEvents(WORLD_EVENT_ON_UPDATE))
         return;
 
+    LOCK_ELUNA;
     Push(diff);
     CallAllFunctions(ServerEventBindings, WORLD_EVENT_ON_UPDATE);
 }
@@ -741,7 +761,7 @@ bool Eluna::OnCommand(Player* player, const char* text)
                 std::transform(eluna.begin(), eluna.end(), eluna.begin(), ::tolower);
                 if (std::string("eluna").find(eluna) == 0)
                 {
-                    Eluna::reload = true;
+                    ReloadEluna();
                     return false;
                 }
             }

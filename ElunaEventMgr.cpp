@@ -26,19 +26,7 @@ LuaEvent::~LuaEvent()
 
 void LuaEvent::Execute()
 {
-    LOCK_ELUNA;
-    // In multithread get map from object and the map's lua state
-    lua_rawgeti((*events->E)->L, LUA_REGISTRYINDEX, funcRef);
-    Eluna::Push((*events->E)->L, funcRef);
-    Eluna::Push((*events->E)->L, delay);
-    Eluna::Push((*events->E)->L, calls);
-    if (calls) // Must be before calling
-        --calls;
-    Eluna::Push((*events->E)->L, events->obj);
-    (*events->E)->ExecuteCall(4, 0);
-
-    ASSERT(!(*events->E)->event_level);
-    (*events->E)->InvalidateObjects();
+    (*events->E)->OnTimedEvent(funcRef, delay, calls ? calls-- : calls, events->obj);
 }
 
 ElunaEventProcessor::ElunaEventProcessor(Eluna** _E, WorldObject* _obj) : m_time(0), obj(_obj), E(_E)
@@ -54,7 +42,7 @@ ElunaEventProcessor::~ElunaEventProcessor()
 {
     RemoveEvents_internal();
 
-    if (obj && Eluna::initialized)
+    if (obj && Eluna::IsInitialized())
     {
         EventMgr::WriteGuard guard((*E)->eventMgr->GetLock());
         (*E)->eventMgr->processors.erase(this);
