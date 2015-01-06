@@ -237,6 +237,9 @@ public:
     {
         ReadGuard guard(GetLock());
 
+        if (!E.IsEnabled())
+            return false;
+
         if (Bindings.empty())
             return false;
 
